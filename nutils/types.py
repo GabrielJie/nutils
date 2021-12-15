@@ -1303,7 +1303,8 @@ def _isimmutable(obj):
     or isinstance(obj, (Immutable, bool, int, float, complex, str, bytes, frozenset, numpy.generic)) \
     or isinstance(obj, builtins.tuple) and all(_isimmutable(item) for item in obj) \
     or isinstance(obj, frozendict) and all(_isimmutable(value) for value in obj.values()) \
-    or isinstance(obj, numpy.ndarray) and not any(base.flags.writeable for base in _array_bases(obj))
+    or isinstance(obj, numpy.ndarray) and not any(base.flags.writeable for base in _array_bases(obj)) \
+    or type(obj).__qualname__ == 'TransformItem'
 
 class _hashable_function_wrapper:
 

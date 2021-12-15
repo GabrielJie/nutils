@@ -2859,7 +2859,7 @@ class HierarchicalTopology(TransformChainsTopology):
               trans_coeffs.append(mypoly[myactive])
 
             if h < len(tail):
-              trans_coeffs = [tail[h].transform_poly(c) for c in trans_coeffs]
+              trans_coeffs = [types.frozenarray(types.arraydata(tail[h].transform_poly(numpy.asarray(c)))) for c in trans_coeffs]
 
         else: # truncated hierarchical basis
 
@@ -2868,7 +2868,7 @@ class HierarchicalTopology(TransformChainsTopology):
             mypoly = ubases[h].get_coefficients(ilocal)
 
             truncpoly = mypoly if h == len(tail) \
-              else numpy.tensordot(numpy.tensordot(tail[h].transform_poly(mypoly), project[...,mypassive], self.ndims), truncpoly[mypassive], 1)
+              else numpy.tensordot(numpy.tensordot(types.arraydata(tail[h].transform_poly(numpy.asarray(mypoly))), project[...,mypassive], self.ndims), truncpoly[mypassive], 1)
 
             imyactive = numeric.sorted_index(ubasis_active[h], mydofs, missing=-1)
             myactive = numpy.greater_equal(imyactive, 0) & numpy.greater(abs(truncpoly), truncation_tolerance).any(axis=tuple(range(1,truncpoly.ndim)))

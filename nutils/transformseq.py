@@ -391,7 +391,7 @@ class PlainTransforms(Transforms):
     self._transforms = transforms
     self._sorted = numpy.empty([len(self._transforms)], dtype=object)
     for i, trans in enumerate(self._transforms):
-      self._sorted[i] = tuple(map(id, trans))
+      self._sorted[i] = trans
     self._indices = numpy.argsort(self._sorted)
     self._sorted = self._sorted[self._indices]
     super().__init__(todims, fromdims)
@@ -409,13 +409,13 @@ class PlainTransforms(Transforms):
 
   def index_with_tail(self, trans):
     trans, orig_trans = transform.promote(trans, self.fromdims), trans
-    transid_array = numpy.empty((), dtype=object)
-    transid_array[()] = transid = tuple(map(id, trans))
-    i = numpy.searchsorted(self._sorted, transid_array, side='right') - 1
+    trans_array = numpy.empty((), dtype=object)
+    trans_array[()] = trans
+    i = numpy.searchsorted(self._sorted, trans_array, side='right') - 1
     if i < 0:
       raise ValueError('{!r} not in sequence of transforms'.format(orig_trans))
     match = self._sorted[i]
-    if transid[:len(match)] != match:
+    if trans[:len(match)] != match:
       raise ValueError('{!r} not in sequence of transforms'.format(orig_trans))
     return self._indices[i], trans[len(match):]
 
@@ -451,8 +451,9 @@ class IndexTransforms(Transforms):
 
   def index_with_tail(self, trans):
     root = trans[0]
-    if root.fromdims == self.fromdims and isinstance(root, transform.Index) and 0 <= root.index - self._offset < self._length:
-      return root.index - self._offset, trans[1:]
+    index = root.as_index()
+    if root.fromdims == self.fromdims and index is not None and 0 <= index - self._offset < self._length:
+      return index - self._offset, trans[1:]
     raise ValueError
 
 class Axis(types.Singleton):
@@ -606,9 +607,12 @@ class StructuredTransforms(Transforms):
     if root != self._root:
       raise ValueError
 
-    if not all(isinstance(index, transform.Index) and index.todims == len(self._axes) for index in indices):
+    if not all(index.todims == len(self._axes) for index in indices):
       raise ValueError
-    indices = numpy.array([index.index for index in indices], dtype=int)
+    indices = [index.as_index() for index in indices]
+    if any(index is None for index in indices):
+      raise ValueError
+    indices = numpy.array(indices, dtype=int)
 
     # Match child transforms.
     for item in tail[:self._nrefine]:

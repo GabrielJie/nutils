@@ -1,0 +1,19 @@
+[package]
+name = "nutils"
+version = "0.1.0"
+authors = ["Evalf <info@evalf.com>"]
+edition = "2021"
+
+[lib]
+name = "nutils"
+crate-type = ["cdylib"]
+
+[package.metadata.maturin]
+name = "nutils._rust"
+
+[dependencies]
+ndarray = { version = "0.15", features = ["approx"] }
+numpy = "0.15"
+num-traits = "0.2"
+approx = "0.4"
+pyo3 = { version = "0.15", features = ["extension-module", "abi3-py36"] }

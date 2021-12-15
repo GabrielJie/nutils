@@ -276,7 +276,7 @@ class TransformPoints(Points):
 
   @property
   def coords(self):
-    return self.trans.apply(self.points.coords)
+    return types.frozenarray(types.arraydata(self.trans.apply(self.points.coords)))
 
   @property
   def weights(self):

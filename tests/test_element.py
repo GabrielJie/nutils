@@ -39,7 +39,7 @@ class elem(TestCase):
         swapped_up = etrans.swapup(ctrans)
         self.assertNotEqual(swapped_up, None)
         ctrans_, etrans_ = swapped_up
-        self.assertEqual(etrans * ctrans, ctrans_ * etrans_)
+        self.assertEqual(element._unpack_product_transform(etrans, ctrans), element._unpack_product_transform(ctrans_, etrans_))
         swapped_down = etrans_.swapdown(ctrans_)
         self.assertEqual(swapped_down, (etrans, ctrans))
 
@@ -55,16 +55,16 @@ class elem(TestCase):
           self.assertIn(ichild, self.ref.connectivity[ioppchild])
           ioppedge = util.index(self.ref.connectivity[ioppchild], ichild)
           self.assertEqual(
-            self.ref.child_transforms[ichild] * self.ref.child_refs[ichild].edge_transforms[iedge],
-            (self.ref.child_transforms[ioppchild] * self.ref.child_refs[ioppchild].edge_transforms[ioppedge]).flipped)
+            element._unpack_product_transform(self.ref.child_transforms[ichild], self.ref.child_refs[ichild].edge_transforms[iedge]),
+            element._unpack_product_transform(self.ref.child_transforms[ioppchild], self.ref.child_refs[ioppchild].edge_transforms[ioppedge].flipped))
 
   @parametrize.enable_if(lambda ref, **kwargs: not isinstance(ref, element.MosaicReference) and ref.ndims >= 1)
   def test_edgechildren(self):
     for iedge, edgechildren in enumerate(self.ref.edgechildren):
       for ichild, (jchild, jedge) in enumerate(edgechildren):
         self.assertEqual(
-          self.ref.edge_transforms[iedge] * self.ref.edge_refs[iedge].child_transforms[ichild],
-          self.ref.child_transforms[jchild] * self.ref.child_refs[jchild].edge_transforms[jedge])
+          element._unpack_product_transform(self.ref.edge_transforms[iedge], self.ref.edge_refs[iedge].child_transforms[ichild]),
+          element._unpack_product_transform(self.ref.child_transforms[jchild], self.ref.child_refs[jchild].edge_transforms[jedge]))
 
   def test_inside(self):
     self.assertTrue(self.ref.inside(self.exactcentroid))

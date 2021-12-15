@@ -110,7 +110,7 @@ class cone(TestCase):
       self.edgeref = element.getsimplex(2)
     else:
       raise Exception('invalid shape: {!r}'.format(self.shape))
-    self.etrans = transform.Updim(linear=[[-1.,0],[0,-3],[0,0]], offset=[1.,3,1], isflipped=False)
+    self.etrans = transform.Updim(linear=numpy.array([[-1.,0],[0,-3],[0,0]]), offset=numpy.array([1.,3,1]), isflipped=False)
     self.cone = element.Cone(edgeref=self.edgeref, etrans=self.etrans, tip=[1.,3,0])
 
   def test_volume(self):

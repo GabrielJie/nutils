@@ -4,7 +4,7 @@ from nutils.testing import *
 class specialcases(TestCase):
 
   def test_tensoredge_swapup_index(self):
-    lineedge = transform.SimplexEdge(1, 0, False)
+    lineedge = transform.SimplexEdge(1, 0)
     for edge in transform.TensorEdge1(lineedge, 1), transform.TensorEdge2(1, lineedge):
       with self.subTest(type(edge).__name__):
         idnt = transform.Index(1, 0)
@@ -49,16 +49,6 @@ class TestUpdim(TestTransform):
   def test_ext(self):
     ext = numeric.ext(self.linear)
     self.assertAllAlmostEqual(ext, self.trans.ext)
-
-class Matrix(TestTransform):
-
-  def setUp(self):
-    super().setUp(trans=transform.Matrix([[1.],[2]], [3.,4]), linear=[[1],[2]], offset=[3,4])
-
-class Qquare(TestInvertible):
-
-  def setUp(self):
-    super().setUp(trans=transform.Square([[1.,2],[1,3]], [5.,6]), linear=[[1,2],[1,3]], offset=[5,6])
 
 class Identity(TestInvertible):
 

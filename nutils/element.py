@@ -32,6 +32,20 @@ from . import util, numeric, cache, transform, warnings, types, points
 import numpy, re, math, itertools, operator, functools
 _ = numpy.newaxis
 
+def _unpack_product_transform(trans1, trans2):
+  linear = types.arraydata(trans1.linear @ trans2.linear)
+  offset = types.arraydata(trans1.offset + trans1.linear @ trans2.offset)
+  if linear.shape[0] == linear.shape[1]:
+    is_flipped = None
+  elif linear.shape[0] == linear.shape[1] + 1:
+    if trans1.todims == trans1.fromdims + 1:
+      ext = trans1.ext
+    else:
+      ext = trans1.linear @ trans2.ext
+    is_flipped = numpy.linalg.det(numpy.concatenate([linear, ext[:,None]], axis=1)) < 0
+  else:
+    raise NotImplementedError
+  return linear, offset, is_flipped
 
 ## REFERENCE ELEMENTS
 
@@ -101,9 +115,9 @@ class Reference(types.Singleton):
     vmap = {}
     for ichild, (ctrans, cref) in enumerate(self.children):
       for iedge, etrans in enumerate(cref.edge_transforms):
-        v = ctrans * etrans
+        v = _unpack_product_transform(ctrans, etrans)
         try:
-          jchild, jedge = vmap.pop(v.flipped)
+          jchild, jedge = vmap.pop(_unpack_product_transform(ctrans, etrans.flipped))
         except KeyError:
           vmap[v] = ichild, iedge
         else:
@@ -111,7 +125,7 @@ class Reference(types.Singleton):
           connectivity[ichild][iedge] = jchild
     for etrans, eref in self.edges:
       for ctrans in eref.child_transforms:
-        vmap.pop(etrans * ctrans, None)
+        vmap.pop(_unpack_product_transform(etrans, ctrans), None)
     assert not any(self.child_refs[ichild].edge_refs[iedge] for ichild, iedge in vmap.values()), 'not all boundary elements recovered'
     return tuple(types.frozenarray(c, copy=False) for c in connectivity)
 
@@ -138,7 +152,7 @@ class Reference(types.Singleton):
       if edge1:
         for iedge2, (etrans2,edge2) in enumerate(edge1.edges):
           if edge2:
-            key = tuple(sorted(tuple(p) for p in (etrans1 * etrans2).apply(edge2.vertices)))
+            key = tuple(sorted(tuple(p) for p in etrans1.apply(etrans2.apply(edge2.vertices))))
             try:
               jedge1, jedge2 = transforms.pop(key)
             except KeyError:
@@ -217,11 +231,11 @@ class Reference(types.Singleton):
         return self.empty if xi == 0 and l1 < 0 or xi == nbins and l0 < 0 else self
       v0, v1 = self.vertices
       midpoint = v0 + (xi/nbins) * (v1-v0)
-      refs = [edgeref if levelfunc(edgetrans.apply(numpy.zeros((1,0)))) > 0 else edgeref.empty for edgetrans, edgeref in self.edges]
+      refs = [edgeref if levelfunc(types.arraydata(edgetrans.apply(numpy.zeros((1,0))))) > 0 else edgeref.empty for edgetrans, edgeref in self.edges]
 
     else:
 
-      refs = [edgeref.slice(lambda vertices: levelfunc(edgetrans.apply(vertices)), ndivisions) for edgetrans, edgeref in self.edges]
+      refs = [edgeref.slice(lambda vertices: levelfunc(types.arraydata(edgetrans.apply(numpy.asarray(vertices)))), ndivisions) for edgetrans, edgeref in self.edges]
       if sum(ref != baseref for ref, baseref in zip(refs, self.edge_refs)) <= 1:
         return self
       if sum(bool(ref) for ref in refs) <= 1:

@@ -3531,7 +3531,7 @@ class Polyval(Array):
   def evalf(self, points, coeffs):
     for igrad in range(self.ngrad):
       coeffs = numeric.poly_grad(coeffs, self.points_ndim)
-    return numeric.poly_eval(coeffs, points)
+    return numeric.poly_eval(coeffs, types.arraydata(points))
 
   def _derivative(self, var, seen):
     if self.dtype == complex:
