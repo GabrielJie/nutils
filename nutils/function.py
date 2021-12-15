@@ -279,7 +279,7 @@ class Array(numpy.lib.mixins.NDArrayOperatorsMixin, metaclass=_ArrayMeta):
     'See :func:`normalized`.'
     return normalized(self, __axis)
 
-  def normal(self, exterior: bool = False) -> 'Array':
+  def normal(self, exterior: Optional['Array'] = None) -> 'Array':
     'See :func:`normal`.'
     return normal(self, exterior)
 
@@ -999,21 +999,16 @@ class _Normal(Array):
 
 class _ExteriorNormal(Array):
 
-  def __init__(self, geom: Array) -> None:
-    assert geom.dtype == float
-    self._geom = geom
-    super().__init__(geom.shape, float, geom.spaces, geom.arguments)
+  def __init__(self, rgrad: Array) -> None:
+    assert rgrad.dtype == float and rgrad.shape[-2] == rgrad.shape[-1] + 1
+    self._rgrad = rgrad
+    super().__init__(rgrad.shape[:-1], float, rgrad.spaces, rgrad.arguments)
 
   def lower(self, points_shape: _PointsShape, transform_chains: _TransformChainsMap, coordinates: _CoordinatesMap) -> evaluable.Array:
-    geom = self._geom.lower(points_shape, transform_chains, coordinates)
-    ref_dim = builtins.sum(transform_chains[space][0].fromdims for space in self._geom.spaces)
-    if self._geom.shape[-1] != ref_dim + 1:
-      raise ValueError('For the exterior normal the dimension of the geometry must be one larger than that of the tip coordinate system, but got {} and {} respectively.'.format(self._geom.shape[-1], ref_dim))
-    refs = tuple((_root_derivative_target if chain.todims == chain.fromdims else _tip_derivative_target)(space, chain.fromdims) for space, (chain, opposite) in transform_chains.items() if space in self._geom.spaces)
-    rgrad = evaluable.concatenate([evaluable.derivative(geom, ref) for ref in refs], axis=-1)
-    if self._geom.shape[-1] == 2:
+    rgrad = self._rgrad.lower(points_shape, transform_chains, coordinates)
+    if self._rgrad.shape[-2] == 2:
       normal = evaluable.stack([rgrad[...,1,0], -rgrad[...,0,0]], axis=-1)
-    elif self._geom.shape[-1] == 3:
+    elif self._rgrad.shape[-2] == 3:
       i = evaluable.asarray([1, 2, 0])
       j = evaluable.asarray([2, 0, 1])
       normal = evaluable.Take(rgrad[...,0], i) * evaluable.Take(rgrad[...,1], j) - evaluable.Take(rgrad[...,1], i) * evaluable.Take(rgrad[...,0], j)
@@ -2789,7 +2784,7 @@ def curl(__arg: IntoArray, __geom: IntoArray) -> Array:
     raise ValueError('Expected a function with a trailing axis of length 3 but got {}.'.format(arg.shape[-1]))
   return (levicivita(3).T * _append_axes(grad(arg, geom), (3,))).sum((-3, -2))
 
-def normal(__geom: IntoArray, exterior: bool = False) -> Array:
+def normal(__geom: IntoArray, exterior: Optional[Array] = None) -> Array:
   '''Return the normal of the geometry.
 
   Parameters
@@ -2810,10 +2805,14 @@ def normal(__geom: IntoArray, exterior: bool = False) -> Array:
   elif geom.ndim > 1:
     sh = geom.shape[-2:]
     return unravel(normal(ravel(geom, geom.ndim-2), exterior), geom.ndim-2, sh)
-  elif not exterior:
+  elif exterior is None:
     return _Normal(geom)
+  elif exterior.dtype != float:
+    raise ValueError('The reference geometry must be real-valued.')
+  elif exterior.shape != (geom.shape[0]-1,):
+    raise ValueError('The reference geometry must have shape ({},) but got {}.'.format(geom.shape[0]-1, exterior.shape))
   else:
-    return _ExteriorNormal(geom)
+    return _ExteriorNormal(grad(geom, exterior))
 
 def dotnorm(__arg: IntoArray, __geom: IntoArray, axis: int = -1) -> Array:
   '''Return the inner product of an array with the normal of the given geometry.
